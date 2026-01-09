@@ -18,6 +18,7 @@ interface NukesResponse {
   ok: number
   nukes: NukeData[]
   shardGameTimes: Record<string, number>
+  shardTickSpeeds?: Record<string, number>
   error?: string
 }
 
@@ -120,6 +121,11 @@ export default function NukeStatusPage() {
     }
   }
 
+  function formatTickSpeed(ms: number): string {
+    const seconds = (ms / 1000).toFixed(1)
+    return `${seconds}秒`
+  }
+
   const shards = ['shard0', 'shard1', 'shard2', 'shard3']
 
   return (
@@ -215,9 +221,16 @@ export default function NukeStatusPage() {
                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                               <h2 className="text-sm font-bold text-white">{shard}</h2>
                             </div>
-                            <span className="px-1.5 py-0.5 bg-indigo-500/30 rounded-full text-xs font-medium text-indigo-300">
-                              {shardNukes.length}
-                            </span>
+                            <div className="flex items-center gap-2">
+                              {data.shardTickSpeeds?.[shard] && (
+                                <span className="text-xs text-indigo-300 font-mono">
+                                  ⚡ {formatTickSpeed(data.shardTickSpeeds[shard])}
+                                </span>
+                              )}
+                              <span className="px-1.5 py-0.5 bg-indigo-500/30 rounded-full text-xs font-medium text-indigo-300">
+                                {shardNukes.length}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         {shardNukes.length > 0 ? (

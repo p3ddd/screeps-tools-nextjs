@@ -35,6 +35,7 @@ interface NukesResponse {
   ok: number
   nukes: NukeData[]
   shardGameTimes: Record<string, number>
+  shardTickSpeeds?: Record<string, number>
   error?: string
 }
 
@@ -49,6 +50,42 @@ interface NukeApiData {
 interface NukesApiResponse {
   ok: number
   nukes: Record<string, NukeApiData[]>
+}
+
+interface PvPRoomData {
+  _id: string
+  lastPvpTime: number
+}
+
+interface PvPShardData {
+  time: number
+  rooms: PvPRoomData[]
+}
+
+interface PvPResponse {
+  ok: number,
+  pvp: {
+    shard0?: PvPShardData
+    shard1?: PvPShardData
+    shard2?: PvPShardData
+    shard3?: PvPShardData
+  }
+  shardTickSpeeds?: Record<string, number>
+  error?: string
+}
+
+interface ShardInfo {
+  name: string
+  lastTicks: number[]
+  cpuLimit: number
+  rooms: number
+  users: number
+  tick: number
+}
+
+interface ShardsInfoResponse {
+  ok: number
+  shards: ShardInfo[]
 }
 
 // 简单的内存缓存
@@ -218,11 +255,59 @@ async function getNukes(shards: string[]): Promise<NukesResponse> {
       
       allNukes.push(...shardResults.flat())
     }
+    
+    const shardsInfo = await getShardsInfo()
+    const shardTickSpeeds: Record<string, number> = {}
+    if (shardsInfo.ok === 1 && shardsInfo.shards) {
+      shardsInfo.shards.forEach(shard => {
+        shardTickSpeeds[shard.name] = shard.tick
+      })
+    }
+    
+    return { ok: 1, nukes: allNukes, shardGameTimes, shardTickSpeeds }
   } catch (error) {
     console.error('获取 nuke 数据失败:', error)
+    return { ok: 1, nukes: allNukes, shardGameTimes }
   }
-  
-  return { ok: 1, nukes: allNukes, shardGameTimes }
+}
+
+async function getShardsInfo(): Promise<ShardsInfoResponse> {
+  try {
+    const url = 'https://screeps.com/api/game/shards/info'
+    const data = await fetchScreepsApi(url) as ShardsInfoResponse
+    return data
+  } catch (error) {
+    console.error('获取 shard 信息失败:', error)
+    return { 
+      ok: 0, 
+      shards: [] 
+    }
+  }
+}
+
+async function getPvPData(interval: number): Promise<PvPResponse> {
+  try {
+    const url = `https://screeps.com/api/experimental/pvp?interval=${interval}`
+    const data = await fetchScreepsApi(url) as PvPResponse
+    
+    const shardsInfo = await getShardsInfo()
+    if (shardsInfo.ok === 1 && shardsInfo.shards) {
+      const shardTickSpeeds: Record<string, number> = {}
+      shardsInfo.shards.forEach(shard => {
+        shardTickSpeeds[shard.name] = shard.tick
+      })
+      data.shardTickSpeeds = shardTickSpeeds
+    }
+    
+    return data
+  } catch (error) {
+    console.error('获取 PvP 数据失败:', error)
+    return { 
+      ok: 0, 
+      pvp: {},
+      error: error instanceof Error ? error.message : '获取 PvP 数据失败' 
+    }
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -242,6 +327,15 @@ export async function GET(request: NextRequest) {
 
     if (action === 'nukes') {
       const result = await getNukes(['shard0', 'shard1', 'shard2', 'shard3'])
+      return NextResponse.json(result)
+    }
+
+    if (action === 'pvp') {
+      const interval = parseInt(searchParams.get('interval') || '100')
+      if (isNaN(interval) || interval <= 0) {
+        return NextResponse.json({ ok: 0, error: 'Invalid interval parameter' }, { status: 400 })
+      }
+      const result = await getPvPData(interval)
       return NextResponse.json(result)
     }
 

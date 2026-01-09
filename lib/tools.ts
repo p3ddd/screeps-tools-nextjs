@@ -31,5 +31,13 @@ export const tools: Tool[] = [
     status: '可用',
     statusColor: 'green',
     href: '/tools/nuke-status'
+  },
+  {
+    id: 'pvp-status',
+    name: 'PvP 战争情况',
+    description: '查询 Screeps 服务器上的 PvP 战争情况，包括最近发生战斗的房间和时间。',
+    status: '可用',
+    statusColor: 'green',
+    href: '/tools/pvp-status'
   }
 ]
