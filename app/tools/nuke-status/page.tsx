@@ -248,7 +248,15 @@ export default function NukeStatusPage() {
                                       <div className={`w-2 h-2 rounded-full shrink-0 ${getUrgencyBgColor(nuke.timeToLand)}`} />
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1">
-                                          <h3 className="text-xs font-semibold text-white truncate">{nuke.roomName}</h3>
+                                          <a 
+                                            href={`https://screeps.com/a/#!/room/${nuke.shard}/${nuke.roomName}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-xs font-semibold text-white truncate hover:text-indigo-400 transition-colors"
+                                            title={`在 Screeps 中查看 ${nuke.roomName}`}
+                                          >
+                                            {nuke.roomName}
+                                          </a>
                                           <span className={`text-xs truncate ${nuke.targetOwner ? 'text-cyan-400' : 'text-gray-500'}`}>
                                             ({nuke.targetOwner || '未知'})
                                           </span>
@@ -257,7 +265,15 @@ export default function NukeStatusPage() {
                                           <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5-5M13 17l5 5m0 0l-5-5M6 7l-5 5m0 0l5-5M6 17l-5 5m0 0l5-5" />
                                           </svg>
-                                          <span className="truncate">{nuke.launchRoomName}</span>
+                                          <a 
+                                            href={`https://screeps.com/a/#!/room/${nuke.shard}/${nuke.launchRoomName}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="truncate hover:text-indigo-400 transition-colors"
+                                            title={`在 Screeps 中查看 ${nuke.launchRoomName}`}
+                                          >
+                                            {nuke.launchRoomName}
+                                          </a>
                                           <span className={`truncate ${nuke.launchOwner ? 'text-orange-400' : 'text-gray-500'}`}>
                                             ({nuke.launchOwner || '未知'})
                                           </span>

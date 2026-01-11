@@ -206,7 +206,15 @@ export default function PvPStatusPage() {
                                     className="border-b border-gray-700/30 hover:bg-gray-700/30 transition-colors"
                                   >
                                     <td className="py-3 pr-4">
-                                      <span className="text-white font-mono">{room._id}</span>
+                                      <a 
+                                        href={`https://screeps.com/a/#!/room/${shard}/${room._id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-white font-mono hover:text-indigo-400 transition-colors"
+                                        title={`在 Screeps 中查看 ${room._id}`}
+                                      >
+                                        {room._id}
+                                      </a>
                                     </td>
                                     <td className="py-3 pr-4">
                                       <span className="text-gray-400">{room.lastPvpTime.toLocaleString()}</span>
