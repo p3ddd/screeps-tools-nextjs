@@ -58,7 +58,7 @@ export default function PvPStatusPage() {
     }
   }
 
-  const shards = ['shard0', 'shard1', 'shard2', 'shard3'] as const
+  const shards = ['shard3', 'shard2', 'shard1', 'shard0'] as const
   const roomsByShard: Record<string, PvPRoomData[]> = {}
   const activeShards: string[] = []
   let totalRooms = 0
