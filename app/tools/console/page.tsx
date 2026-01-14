@@ -103,19 +103,23 @@ export default function ConsolePage() {
 
   // Auto-connect when token changes
   useEffect(() => {
-    if (token) {
-      if (connectionMode === 'self') {
-        connect(token)
-      } else if (connectionMode === 'spectator' && targetUsername) {
-        const timer = setTimeout(() => {
-            connect(token, targetUsername)
-        }, 800)
-        return () => clearTimeout(timer)
-      }
+    if (connectionMode === 'self') {
+        if (token) {
+            connect(token)
+        } else {
+            disconnect()
+        }
     } else {
-      disconnect()
+        // Spectator mode: manual connect
     }
-  }, [token, connectionMode, targetUsername, connect, disconnect])
+  }, [token, connectionMode, connect, disconnect])
+
+  const handleSpectatorConnect = () => {
+      if (connectionMode === 'spectator' && targetUsername) {
+          // 观察模式完全不传 Token
+          connect('', targetUsername)
+      }
+  }
 
 
 
@@ -170,11 +174,14 @@ export default function ConsolePage() {
   }
 
   const saveCommand = () => {
-    if (!commandName.trim() || !command.trim()) return
+    if (!command.trim()) return
+    
+    // 如果没有输入名字，自动生成一个默认名字
+    const nameToSave = commandName.trim() || `Cmd ${new Date().toLocaleTimeString()}`
     
     const newCommand: SavedCommand = {
       id: Date.now().toString(),
-      name: commandName,
+      name: nameToSave,
       command: command,
       timestamp: Date.now()
     }
@@ -300,14 +307,57 @@ export default function ConsolePage() {
 
         <div className="flex gap-6 items-start">
           {/* Left: Settings */}
-          <div className={`${isSidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden'} transition-all duration-300 ease-in-out shrink-0`}>
-            <div className="w-80 space-y-4">
+          <div className={`${isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'} transition-all duration-300 ease-in-out shrink-0`}>
+            <div className="w-64 space-y-4">
             <div className="bg-[#1d2027]/60 backdrop-blur-sm rounded-md p-4 border border-[#5973ff]/10">
               <h3 className="text-[#e5e7eb] font-semibold mb-4 text-xs">连接设置</h3>
               
               <div className="space-y-4">
+                {/* Connection Mode */}
+                <div>
+                  <div className="flex gap-2 p-1 bg-[#161724]/50 rounded-lg border border-[#5973ff]/10">
+                    <button
+                      onClick={() => {
+                          setConnectionMode('self')
+                          setTargetUsername('')
+                      }}
+                      className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${
+                        connectionMode === 'self' 
+                          ? 'bg-[#5973ff]/20 text-white shadow-sm' 
+                          : 'text-[#909fc4] hover:text-[#e5e7eb]'
+                      }`}
+                    >
+                      Token 模式
+                    </button>
+                    <button
+                      onClick={() => setConnectionMode('spectator')}
+                      className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${
+                        connectionMode === 'spectator' 
+                          ? 'bg-[#5973ff]/20 text-white shadow-sm' 
+                          : 'text-[#909fc4] hover:text-[#e5e7eb]'
+                      }`}
+                    >
+                      观察模式
+                    </button>
+                  </div>
+                </div>
+
+                {/* Target Username (Spectator Mode) */}
+                {connectionMode === 'spectator' && (
+                    <div>
+                      <label className="text-xs text-[#909fc4] mb-1.5 block">目标用户名</label>
+                      <input
+                        type="text"
+                        value={targetUsername}
+                        onChange={(e) => setTargetUsername(e.target.value)}
+                        placeholder="输入要观察的玩家用户名"
+                        className="w-full h-9 px-3 bg-[#1d2027] border border-[#5973ff]/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5973ff]/50"
+                      />
+                    </div>
+                )}
+
                 {/* Saved Tokens Dropdown */}
-                {savedTokens.length > 0 && (
+                {connectionMode === 'self' && savedTokens.length > 0 && (
                   <div>
                     <label className="text-xs text-[#909fc4] mb-1.5 block">已保存的 Token</label>
                     <div className="flex gap-2">
@@ -333,6 +383,8 @@ export default function ConsolePage() {
                   </div>
                 )}
 
+                {/* Token Input Section - Hide in Spectator Mode */}
+                {connectionMode === 'self' && (
                 <div>
                   <label className="text-xs text-[#909fc4] mb-1.5 block">API Token</label>
                   <div className="relative">
@@ -364,9 +416,10 @@ export default function ConsolePage() {
                     Token 将保存在您的浏览器 LocalStorage 中
                   </p>
                 </div>
+                )}
 
                 {/* Save Token Section */}
-                {selectedTokenIndex === -1 && token && (
+                {connectionMode === 'self' && selectedTokenIndex === -1 && token && (
                   <div className="pt-2 border-t border-[#5973ff]/10">
                     <label className="text-xs text-[#909fc4] mb-1.5 block">保存为常用 Token</label>
                     <div className="flex gap-2">
@@ -380,61 +433,23 @@ export default function ConsolePage() {
                       <button
                         onClick={saveToken}
                         disabled={!tokenName.trim()}
-                        className={`px-3 h-9 rounded-lg text-xs transition-colors border ${
+                        className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm transition-colors border ${
                           tokenName.trim()
                             ? 'bg-[#5973ff]/10 hover:bg-[#5973ff]/20 text-[#5973ff] border-[#5973ff]/20 cursor-pointer'
                             : 'bg-[#909fc4]/5 text-[#909fc4]/30 border-[#909fc4]/10 cursor-not-allowed'
                         }`}
+                        title="保存"
                       >
-                        保存
+                        💾
                       </button>
                     </div>
                   </div>
                 )}
 
                 {/* Connection Mode */}
-                <div>
-                  <label className="text-xs text-[#909fc4] mb-1.5 block">连接模式</label>
-                  <div className="flex gap-2 p-1 bg-[#161724]/50 rounded-lg border border-[#5973ff]/10">
-                    <button
-                      onClick={() => {
-                          setConnectionMode('self')
-                          setTargetUsername('')
-                      }}
-                      className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${
-                        connectionMode === 'self' 
-                          ? 'bg-[#5973ff]/20 text-white shadow-sm' 
-                          : 'text-[#909fc4] hover:text-[#e5e7eb]'
-                      }`}
-                    >
-                      当前用户
-                    </button>
-                    <button
-                      onClick={() => setConnectionMode('spectator')}
-                      className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${
-                        connectionMode === 'spectator' 
-                          ? 'bg-[#5973ff]/20 text-white shadow-sm' 
-                          : 'text-[#909fc4] hover:text-[#e5e7eb]'
-                      }`}
-                    >
-                      观察模式
-                    </button>
-                  </div>
-                </div>
-
+                {/* Removed from bottom, moved to top */}
                 {/* Target Username (Spectator Mode) */}
-                {connectionMode === 'spectator' && (
-                    <div>
-                      <label className="text-xs text-[#909fc4] mb-1.5 block">目标用户名</label>
-                      <input
-                        type="text"
-                        value={targetUsername}
-                        onChange={(e) => setTargetUsername(e.target.value)}
-                        placeholder="输入要观察的玩家用户名"
-                        className="w-full h-9 px-3 bg-[#1d2027] border border-[#5973ff]/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#5973ff]/50"
-                      />
-                    </div>
-                )}
+                {/* Removed from bottom, moved to top */}
 
                 <div>
                   <label className="text-xs text-[#909fc4] mb-1.5 block">Shard</label>
@@ -472,6 +487,25 @@ export default function ConsolePage() {
                     />
                   )}
                 </div>
+
+                {connectionMode === 'spectator' && (
+                    <div>
+                      <button
+                        onClick={handleSpectatorConnect}
+                        disabled={!targetUsername.trim()}
+                        className={`w-full h-9 rounded-lg text-xs font-medium transition-colors ${
+                            targetUsername.trim()
+                            ? 'bg-[#5973ff]/20 hover:bg-[#5973ff]/30 text-[#5973ff] border border-[#5973ff]/30'
+                            : 'bg-[#909fc4]/10 text-[#909fc4]/30 border border-[#909fc4]/10 cursor-not-allowed'
+                        }`}
+                      >
+                        连接控制台
+                      </button>
+                      <p className="text-[10px] text-[#909fc4]/60 mt-2">
+                        观察模式仅能查看日志，无法执行命令。<br/>
+                      </p>
+                    </div>
+                )}
               </div>
             </div>
             </div>
@@ -585,14 +619,15 @@ export default function ConsolePage() {
                              <button
                                type="button"
                                onClick={saveCommand}
-                               disabled={!commandName.trim() || !command.trim()}
-                               className={`px-3 h-8 rounded text-xs transition-colors border ${
-                                 commandName.trim() && command.trim()
+                               disabled={!command.trim()}
+                               className={`w-8 h-8 flex items-center justify-center rounded text-sm transition-colors border ${
+                                 command.trim()
                                    ? 'bg-[#5973ff]/10 hover:bg-[#5973ff]/20 text-[#5973ff] border-[#5973ff]/20 cursor-pointer'
                                    : 'bg-[#909fc4]/5 text-[#909fc4]/30 border-[#909fc4]/10 cursor-not-allowed'
                                }`}
+                               title="保存 (未输入名称将自动生成)"
                              >
-                               保存
+                               💾
                              </button>
                            </div>
                        </div>
@@ -600,39 +635,40 @@ export default function ConsolePage() {
                  </div>
                )}
 
-              <div className="p-4 relative">
+              <div className="p-4">
                 <textarea
                   value={command}
                   onChange={(e) => setCommand(e.target.value)}
                   onKeyDown={handleKeyDown}
                   disabled={connectionMode === 'spectator'}
                   placeholder={connectionMode === 'spectator' ? "观察模式下无法输入命令" : "输入代码..."}
-                  className={`w-full h-24 bg-[#0b0d0f]/50 border border-[#5973ff]/20 rounded-lg p-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#5973ff]/50 resize-none ${
+                  className={`w-full h-20 bg-[#0b0d0f]/50 border border-[#5973ff]/20 rounded-lg p-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#5973ff]/50 resize-none mb-2 ${
                     connectionMode === 'spectator' ? 'cursor-not-allowed opacity-50' : ''
                   }`}
                 />
-                <div className="absolute right-2 bottom-2 flex gap-2 items-center">
-                  <span className="text-[10px] text-[#909fc4]/40 hidden sm:block whitespace-nowrap">
-                    Shift + Enter 换行
-                  </span>
-                  <button
-                    onClick={executeCommand}
-                    disabled={isLoading || !token || connectionMode === 'spectator'}
-                    className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
-                      isLoading || !token || connectionMode === 'spectator'
-                        ? 'bg-[#909fc4]/10 text-[#909fc4]/50 cursor-not-allowed'
-                        : 'btn-primary text-white hover:shadow-lg hover:shadow-[#5973ff]/20'
-                    }`}
-                  >
-                    {isLoading ? '执行中...' : '执行'}
-                  </button>
+                
+                <div className="flex items-center justify-between h-8">
+                    <div className="text-[#ff7379] text-xs truncate mr-4">
+                        {error}
+                    </div>
+                    <div className="flex gap-3 items-center shrink-0">
+                      <span className="text-[10px] text-[#909fc4]/40 hidden sm:block whitespace-nowrap">
+                        Shift + Enter 换行
+                      </span>
+                      <button
+                        onClick={executeCommand}
+                        disabled={isLoading || !token || connectionMode === 'spectator'}
+                        className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap ${
+                          isLoading || !token || connectionMode === 'spectator'
+                            ? 'bg-[#909fc4]/10 text-[#909fc4]/50 cursor-not-allowed'
+                            : 'btn-primary text-white hover:shadow-lg hover:shadow-[#5973ff]/20'
+                        }`}
+                      >
+                        {isLoading ? '执行中...' : '执行'}
+                      </button>
+                    </div>
                 </div>
               </div>
-              {error && (
-                <div className="text-[#ff7379] text-xs mt-2">
-                  {error}
-                </div>
-              )}
             </div>
           </div>
         </div>

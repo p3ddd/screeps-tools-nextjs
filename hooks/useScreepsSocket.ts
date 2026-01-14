@@ -28,12 +28,19 @@ export function useScreepsSocket(
     onErrorRef.current = onError
   }, [onNewLogs, onError])
 
+  const statusRef = useRef<ConnectionStatus>('disconnected')
+  
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
+
   const connect = useCallback(async (token: string, targetUsername?: string) => {
 
-    if (!token) return
+    // Removed the "if (!token) return" check to allow empty token in spectator mode (if supported)
+    // if (!token) return
     
     // 如果已经在连接或已连接，且 token 没变且 targetUsername 没变，忽略
-    if ((status === 'connected' || status === 'connecting' || status === 'authenticating') && 
+    if ((statusRef.current === 'connected' || statusRef.current === 'connecting' || statusRef.current === 'authenticating') && 
         tokenRef.current === token && 
         targetUsernameRef.current === (targetUsername || '')) {
       return
@@ -41,6 +48,7 @@ export function useScreepsSocket(
 
     // 清理旧连接
     if (socketRef.current) {
+      socketRef.current.onclose = null // Prevent triggering onclose
       socketRef.current.close()
     }
     if (reconnectTimeoutRef.current) {
@@ -81,10 +89,24 @@ export function useScreepsSocket(
       socketRef.current = ws
 
       ws.onopen = () => {
-        console.log('WS Connected, sending auth...')
-        setStatus('authenticating')
-        ws.send(`auth ${token}`)
-        // 可以在这里通知连接已建立（虽然还没认证）
+        
+        if (token) {
+            setStatus('authenticating')
+            ws.send(`auth ${token}`)
+        } else {
+            // 无 Token 模式（观察模式），直接尝试订阅
+            setStatus('connected')
+            ws.send(`subscribe user:${userIdRef.current}/console`)
+            
+            // 通知连接成功
+            if (onNewLogsRef.current) {
+                onNewLogsRef.current([{
+                    line: `[System] Connected to console (Spectator Mode, User ID: ${userIdRef.current})`,
+                    timestamp: Date.now(),
+                    error: false
+                }])
+            }
+        }
       }
 
       ws.onmessage = (event) => {
@@ -92,7 +114,6 @@ export function useScreepsSocket(
         
         // 处理 Auth 响应
         if (data.startsWith('auth ok')) {
-          console.log('Auth success, subscribing...')
           setStatus('connected')
           ws.send(`subscribe user:${userIdRef.current}/console`)
           
@@ -108,7 +129,6 @@ export function useScreepsSocket(
         }
         
         if (data.startsWith('auth failed')) {
-          console.error('Auth failed')
           setStatus('error')
           ws.close()
           if (onErrorRef.current) {
@@ -211,7 +231,7 @@ export function useScreepsSocket(
           onErrorRef.current(e)
       }
     }
-  }, [status])
+  }, [])
 
   const disconnect = useCallback(() => {
     tokenRef.current = ''
