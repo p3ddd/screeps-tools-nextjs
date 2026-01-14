@@ -44,7 +44,8 @@ export default function ConsolePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [showToken, setShowToken] = useState(false)
-  const logsEndRef = useRef<HTMLDivElement>(null)
+  const [autoScroll, setAutoScroll] = useState(true)
+  const logsContainerRef = useRef<HTMLDivElement>(null)
   
   const { status, connect, disconnect } = useScreepsSocket((newLogs) => {
     setLogs(prev => {
@@ -101,6 +102,19 @@ export default function ConsolePage() {
     }
   }, [])
 
+
+  useEffect(() => {
+    if (autoScroll && logsContainerRef.current) {
+      const { scrollHeight, clientHeight } = logsContainerRef.current
+      // 只有当内容高度超过容器高度时才滚动，且只滚动容器内部
+      if (scrollHeight > clientHeight) {
+          logsContainerRef.current.scrollTo({
+              top: scrollHeight,
+              behavior: 'smooth'
+          })
+      }
+    }
+  }, [logs, autoScroll])
 
   // Auto-connect when token changes
   useEffect(() => {
@@ -533,16 +547,30 @@ export default function ConsolePage() {
                 <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
                 <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50" />
               </div>
-              <button 
-                onClick={clearLogs}
-                className="text-xs text-[#909fc4] hover:text-white transition-colors"
-              >
-                清除日志
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                    onClick={() => setAutoScroll(!autoScroll)}
+                    className={`text-xs transition-colors flex items-center gap-1.5 ${
+                        autoScroll ? 'text-[#5973ff]' : 'text-[#909fc4] hover:text-white'
+                    }`}
+                >
+                    <div className={`w-1.5 h-1.5 rounded-full ${autoScroll ? 'bg-[#5973ff]' : 'bg-[#909fc4]/50'}`} />
+                    {autoScroll ? '自动滚动' : '暂停滚动'}
+                </button>
+                <button 
+                    onClick={clearLogs}
+                    className="text-xs text-[#909fc4] hover:text-white transition-colors"
+                >
+                    清除日志
+                </button>
+              </div>
             </div>
 
             {/* Output */}
-            <div className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-2">
+            <div 
+                ref={logsContainerRef}
+                className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-2 scroll-smooth"
+            >
               {logs.length === 0 && (
                 <div className="text-[#909fc4]/40 text-center mt-20">
                   暂无日志，输入命令开始交互...
@@ -555,7 +583,6 @@ export default function ConsolePage() {
                 </div>
 
               ))}
-              <div ref={logsEndRef} />
             </div>
 
 
