@@ -126,8 +126,10 @@ export default function ConsolePage() {
         }
     } else {
         // Spectator mode: manual connect
+        // 切换到观察模式时，主动断开之前的连接
+        disconnect()
     }
-  }, [token, connectionMode, connect, disconnect])
+  }, [token, connectionMode, shard, connect, disconnect])
 
   const handleSpectatorConnect = () => {
       if (connectionMode === 'spectator' && targetUsername) {
@@ -186,6 +188,12 @@ export default function ConsolePage() {
     const newShard = e.target.value
     setShard(newShard)
     localStorage.setItem('screeps_shard', newShard)
+    
+    setLogs(prev => [...prev, {
+        message: `[System] Command target switched to ${newShard}`,
+        timestamp: Date.now(),
+        shard: newShard
+    }])
   }
 
   const saveCommand = () => {
@@ -485,6 +493,11 @@ export default function ConsolePage() {
                         if (val !== 'custom') {
                           setShard(val)
                           localStorage.setItem('screeps_shard', val)
+                          setLogs(prev => [...prev, {
+                              message: `[System] Command target switched to ${val}`,
+                              timestamp: Date.now(),
+                              shard: val
+                          }])
                         } else {
                           // 如果选择自定义，保持当前值（或清空），但让输入框显示
                           setShard('') 
