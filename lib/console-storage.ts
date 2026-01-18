@@ -1,10 +1,3 @@
-export interface PersistedConsoleLog {
-  message: string
-  error?: boolean
-  timestamp: number
-  shard?: string
-}
-
 function fnv1a32(input: string): string {
   let hash = 0x811c9dc5
   for (let i = 0; i < input.length; i++) {
@@ -48,39 +41,6 @@ function pruneTail<T>(items: T[], maxItems: number): T[] {
   if (maxItems <= 0) return []
   if (items.length <= maxItems) return items
   return items.slice(items.length - maxItems)
-}
-
-export function getConsoleHistoryStorageKey(identityKey: string): string {
-  return `screeps_console_history_v1:${identityKey}`
-}
-
-export function readConsoleHistory(identityKey: string, maxItems: number): PersistedConsoleLog[] {
-  if (!identityKey) return []
-  const key = getConsoleHistoryStorageKey(identityKey)
-  const logs = safeJsonParse<PersistedConsoleLog[]>(localStorage.getItem(key), [])
-  const normalized = Array.isArray(logs) ? logs : []
-  return pruneTail(normalized, maxItems)
-}
-
-export function writeConsoleHistory(identityKey: string, logs: PersistedConsoleLog[], maxItems: number): void {
-  if (!identityKey) return
-  const key = getConsoleHistoryStorageKey(identityKey)
-  const pruned = pruneTail(logs, maxItems)
-  try {
-    localStorage.setItem(key, JSON.stringify(pruned))
-  } catch {
-    try {
-      localStorage.setItem(key, JSON.stringify(pruneTail(pruned, Math.floor(maxItems / 2))))
-    } catch {
-      localStorage.removeItem(key)
-    }
-  }
-}
-
-export function clearConsoleHistory(identityKey: string): void {
-  if (!identityKey) return
-  const key = getConsoleHistoryStorageKey(identityKey)
-  localStorage.removeItem(key)
 }
 
 export function getCommandHistoryStorageKey(identityKey: string): string {

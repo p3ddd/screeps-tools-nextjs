@@ -4,14 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ScreepsApiClient } from '@/lib/screeps-client'
 import { useScreepsSocket } from '@/hooks/useScreepsSocket'
 import CustomSelect from '@/components/CustomSelect'
-import {
-  clearConsoleHistory,
-  addCommandToHistory,
-  computeConsoleIdentityKey,
-  readCommandHistory,
-  readConsoleHistory,
-  writeConsoleHistory
-} from '@/lib/console-storage'
+import { addCommandToHistory, computeConsoleIdentityKey, readCommandHistory } from '@/lib/console-storage'
 
 interface ConsoleLog {
   _id?: string
@@ -153,7 +146,6 @@ function sanitizeConsoleHtml(raw: string): string {
 }
 
 export default function ConsolePage() {
-  const MAX_HISTORY_LOGS = 2000
   const MAX_COMMAND_HISTORY = 200
   const MAX_SUGGESTIONS = 8
 
@@ -177,10 +169,7 @@ export default function ConsolePage() {
   const [autoScroll, setAutoScroll] = useState(true)
   const logsContainerRef = useRef<HTMLDivElement>(null)
   const [identityKey, setIdentityKey] = useState('')
-  const [connectionInstanceId, setConnectionInstanceId] = useState(0)
   const identityDebounceTimeoutRef = useRef<number | null>(null)
-  const historyPersistTimeoutRef = useRef<number | null>(null)
-  const connectStartedAtRef = useRef<number>(0)
   const commandInputRef = useRef<HTMLTextAreaElement>(null)
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -282,47 +271,12 @@ export default function ConsolePage() {
   }, [token, targetUsername, connectionMode])
 
   useEffect(() => {
-    if (status === 'connected') setConnectionInstanceId(Date.now())
-  }, [status])
-
-  useEffect(() => {
     if (!identityKey) {
       setCommandHistory([])
       return
     }
     setCommandHistory(readCommandHistory(identityKey, MAX_COMMAND_HISTORY))
   }, [identityKey])
-
-  useEffect(() => {
-    if (!connectionInstanceId) return
-    if (!identityKey) return
-
-    const history = readConsoleHistory(identityKey, MAX_HISTORY_LOGS)
-    const startedAt = connectStartedAtRef.current
-    setLogs(prev => {
-      const recent = startedAt ? prev.filter(l => l.timestamp >= startedAt) : []
-      return [...history, ...recent]
-    })
-  }, [connectionInstanceId, identityKey])
-
-  useEffect(() => {
-    if (!identityKey) return
-    if (historyPersistTimeoutRef.current) {
-      window.clearTimeout(historyPersistTimeoutRef.current)
-      historyPersistTimeoutRef.current = null
-    }
-
-    historyPersistTimeoutRef.current = window.setTimeout(() => {
-      writeConsoleHistory(identityKey, logs, MAX_HISTORY_LOGS)
-    }, 500)
-
-    return () => {
-      if (historyPersistTimeoutRef.current) {
-        window.clearTimeout(historyPersistTimeoutRef.current)
-        historyPersistTimeoutRef.current = null
-      }
-    }
-  }, [logs, identityKey])
 
   useEffect(() => {
     const lastLine = command.split('\n').at(-1) ?? ''
@@ -368,8 +322,6 @@ export default function ConsolePage() {
   useEffect(() => {
     if (connectionMode === 'self') {
         if (token) {
-            connectStartedAtRef.current = Date.now()
-            setLogs([])
             connect(token)
         } else {
             disconnect()
@@ -385,8 +337,6 @@ export default function ConsolePage() {
       if (!enableSpectatorMode) return
       
       if (connectionMode === 'spectator' && targetUsername) {
-          connectStartedAtRef.current = Date.now()
-          setLogs([])
           // 观察模式完全不传 Token
           connect('', targetUsername)
       }
@@ -559,12 +509,6 @@ export default function ConsolePage() {
   }
 
   const clearLogs = () => {
-    setLogs([])
-  }
-
-  const clearHistory = () => {
-    if (!identityKey) return
-    clearConsoleHistory(identityKey)
     setLogs([])
   }
 
@@ -858,15 +802,6 @@ export default function ConsolePage() {
                     className="text-xs text-[#909fc4] hover:text-white transition-colors"
                 >
                     清除日志
-                </button>
-                <button 
-                    onClick={clearHistory}
-                    disabled={!identityKey}
-                    className={`text-xs transition-colors ${
-                      identityKey ? 'text-[#909fc4] hover:text-white' : 'text-[#909fc4]/30 cursor-not-allowed'
-                    }`}
-                >
-                    清除历史
                 </button>
               </div>
             </div>
