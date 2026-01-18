@@ -46,9 +46,25 @@ function escapeHtml(text: string): string {
 function sanitizeConsoleHtml(raw: string): string {
   if (!raw) return ''
   if (typeof document === 'undefined') return escapeHtml(raw)
-  if (!raw.includes('<')) return escapeHtml(raw)
+  const looksLikeHtml = /<\/?[a-zA-Z][\s>]/.test(raw) || raw.includes('<style') || raw.includes('<br')
+  if (!looksLikeHtml) return escapeHtml(raw)
 
-  const allowedTags = new Set(['SPAN', 'BR', 'B', 'I', 'U', 'S', 'CODE', 'PRE'])
+  const allowedTags = new Set([
+    'DIV',
+    'SPAN',
+    'BR',
+    'B',
+    'I',
+    'U',
+    'S',
+    'CODE',
+    'PRE',
+    'P',
+    'UL',
+    'OL',
+    'LI',
+    'STYLE'
+  ])
   const allowedStyleProps = new Set(['color', 'background-color', 'font-weight', 'font-style', 'text-decoration'])
 
   const template = document.createElement('template')
@@ -56,34 +72,64 @@ function sanitizeConsoleHtml(raw: string): string {
 
   const sanitizeElement = (el: Element) => {
     const tag = el.tagName.toUpperCase()
+    if (tag === 'SCRIPT') {
+      el.remove()
+      return
+    }
     if (!allowedTags.has(tag)) {
-      el.replaceWith(document.createTextNode(el.textContent || ''))
+      const text = el.textContent || ''
+      el.replaceWith(document.createTextNode(text))
       return
     }
 
-    const originalStyle = tag === 'SPAN' ? (el as HTMLElement).getAttribute('style') : null
+    const originalClass = (el as HTMLElement).getAttribute('class')
+    const originalStyle = (el as HTMLElement).getAttribute('style')
+    const originalText = tag === 'STYLE' ? el.textContent || '' : ''
+
     for (const attr of Array.from(el.attributes)) {
       el.removeAttribute(attr.name)
     }
 
-    if (tag === 'SPAN') {
-      const styleAttr = originalStyle
-      if (styleAttr) {
-        const sanitized: string[] = []
-        for (const part of styleAttr.split(';')) {
-          const [rawProp, ...rawValParts] = part.split(':')
-          const prop = (rawProp || '').trim().toLowerCase()
-          const value = rawValParts.join(':').trim()
-          if (!prop || !value) continue
-          if (!allowedStyleProps.has(prop)) continue
-          const lowered = value.toLowerCase()
-          if (lowered.includes('url(') || lowered.includes('expression') || lowered.includes('javascript:')) continue
-          if (!/^[#(),.%\s\w-]+$/.test(value)) continue
-          sanitized.push(`${prop}:${value}`)
-        }
-        if (sanitized.length > 0) {
-          ;(el as HTMLElement).setAttribute('style', sanitized.join(';'))
-        }
+    if (tag === 'STYLE') {
+      const css = originalText
+      const lowered = css.toLowerCase()
+      if (
+        lowered.includes('@import') ||
+        lowered.includes('expression') ||
+        lowered.includes('javascript:') ||
+        lowered.includes('url(')
+      ) {
+        el.remove()
+        return
+      }
+      el.textContent = css
+      return
+    }
+
+    if (originalClass) {
+      const tokens = originalClass
+        .split(/\s+/)
+        .map(t => t.trim())
+        .filter(Boolean)
+        .filter(t => /^[a-zA-Z0-9_-]+$/.test(t))
+      if (tokens.length > 0) (el as HTMLElement).setAttribute('class', tokens.join(' '))
+    }
+
+    if (originalStyle) {
+      const sanitized: string[] = []
+      for (const part of originalStyle.split(';')) {
+        const [rawProp, ...rawValParts] = part.split(':')
+        const prop = (rawProp || '').trim().toLowerCase()
+        const value = rawValParts.join(':').trim()
+        if (!prop || !value) continue
+        if (!allowedStyleProps.has(prop)) continue
+        const lowered = value.toLowerCase()
+        if (lowered.includes('url(') || lowered.includes('expression') || lowered.includes('javascript:')) continue
+        if (!/^[#(),.%\s\w-]+$/.test(value)) continue
+        sanitized.push(`${prop}:${value}`)
+      }
+      if (sanitized.length > 0) {
+        ;(el as HTMLElement).setAttribute('style', sanitized.join(';'))
       }
     }
   }
