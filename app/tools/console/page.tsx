@@ -171,6 +171,9 @@ export default function ConsolePage() {
   const [identityKey, setIdentityKey] = useState('')
   const identityDebounceTimeoutRef = useRef<number | null>(null)
   const commandInputRef = useRef<HTMLTextAreaElement>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
+  const settingsPanelRef = useRef<HTMLDivElement>(null)
+  const [settingsPosition, setSettingsPosition] = useState<{ top: number; left: number } | null>(null)
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [isAutocompleteOpen, setIsAutocompleteOpen] = useState(false)
@@ -269,6 +272,45 @@ export default function ConsolePage() {
       }
     }
   }, [token, targetUsername, connectionMode])
+
+  useEffect(() => {
+    if (!isSidebarOpen) return
+
+    const update = () => {
+      const btn = settingsButtonRef.current
+      if (!btn) return
+      const rect = btn.getBoundingClientRect()
+      const preferredWidth = settingsPanelRef.current?.offsetWidth ?? 320
+      const margin = 16
+      const maxLeft = Math.max(margin, window.innerWidth - preferredWidth - margin)
+      const left = Math.min(Math.max(rect.left, margin), maxLeft)
+      const top = Math.min(rect.bottom + 8, window.innerHeight - margin)
+      setSettingsPosition({ top, left })
+    }
+
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [isSidebarOpen])
+
+  useEffect(() => {
+    if (!isSidebarOpen) return
+    const onPointerDown = (e: MouseEvent) => {
+      const panel = settingsPanelRef.current
+      const btn = settingsButtonRef.current
+      const target = e.target as Node | null
+      if (!target) return
+      if (panel?.contains(target)) return
+      if (btn?.contains(target)) return
+      setIsSidebarOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    return () => document.removeEventListener('mousedown', onPointerDown)
+  }, [isSidebarOpen])
 
   useEffect(() => {
     if (!identityKey) {
@@ -521,6 +563,7 @@ export default function ConsolePage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <button
+              ref={settingsButtonRef}
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-2 rounded-lg bg-[#1d2027]/60 border border-[#5973ff]/10 text-[#909fc4] hover:text-white hover:bg-[#5973ff]/10 transition-colors"
               title={isSidebarOpen ? "收起侧边栏" : "展开侧边栏"}
@@ -553,14 +596,33 @@ export default function ConsolePage() {
         </div>
 
 
-        <div className="flex gap-6 items-start">
-          {/* Left: Settings */}
-          <div className={`${isSidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'} transition-all duration-300 ease-in-out shrink-0`}>
-            <div className="w-64 space-y-4">
-            <div className="bg-[#1d2027]/60 backdrop-blur-sm rounded-md p-4 border border-[#5973ff]/10">
-              <h3 className="text-[#e5e7eb] font-semibold mb-4 text-xs">连接设置</h3>
-              
-              <div className="space-y-4">
+        <div className="relative">
+          {isSidebarOpen && (
+            <div
+              ref={settingsPanelRef}
+              style={{
+                position: 'fixed',
+                top: settingsPosition?.top ?? 80,
+                left: settingsPosition?.left ?? 16
+              }}
+              className="z-20 w-80 max-w-[calc(100vw-2rem)]"
+            >
+              <div className="bg-[#1d2027]/90 backdrop-blur-md rounded-md p-4 border border-[#5973ff]/20 shadow-xl">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[#e5e7eb] font-semibold text-xs">连接设置</h3>
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarOpen(false)}
+                    className="text-[#909fc4] hover:text-white transition-colors"
+                    title="关闭"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[calc(100vh-160px)] overflow-auto pr-1">
                 {/* Connection Mode */}
                 <div>
                   <div className="flex gap-2 p-1 bg-[#161724]/50 rounded-lg border border-[#5973ff]/10">
@@ -774,10 +836,8 @@ export default function ConsolePage() {
                 )}
               </div>
             </div>
-            </div>
           </div>
-
-          {/* Right: Console Area */}
+          )}
 
           <div className="flex-1 flex flex-col h-[calc(100vh-200px)] min-h-[600px] bg-[#1d2027]/60 backdrop-blur-sm rounded-md border border-[#5973ff]/10 overflow-hidden">
             {/* Toolbar */}
