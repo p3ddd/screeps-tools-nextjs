@@ -869,7 +869,7 @@ export default function ConsolePage() {
             {/* Output */}
             <div 
                 ref={logsContainerRef}
-                className="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-2 scroll-smooth"
+                className="flex-1 overflow-y-auto p-4 font-mono text-xs leading-tight space-y-1 scroll-smooth"
             >
               {logs.length === 0 && (
                 <div className="text-[#909fc4]/40 text-center mt-20">
